@@ -1,1 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TDE Agency Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #1A1F2E;
+    --card:      #242938;
+    --border:    #2A3050;
+    --accent:    #5588E0;
+    --accent2:   #E05588;
+    --accent3:   #88A0C8;
+    --green:     #22C55E;
+    --amber:     #F59E0B;
+    --red:       #EF4444;
+    --text:      #FFFFFF;
+    --muted:     #8899BB;
+    --font:      'Inter', 'Roboto', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; min-height: 100vh; }
 
+  /* ── TOP BAR ── */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .tde-logo { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--accent); }
+  .topbar-title { font-size: 13px; color: var(--muted); }
+  .topbar-right { display: flex; gap: 8px; align-items: center; }
+  .filter-pill { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; font-size: 11px; color: var(--muted); cursor: pointer; transition: border-color .15s; }
+  .filter-pill:hover, .filter-pill.active { border-color: var(--accent); color: var(--accent); }
+  .refresh-btn { background: var(--accent); border: none; border-radius: 6px; padding: 5px 12px; font-size: 11px; color: #fff; cursor: pointer; }
+  .last-updated { font-size: 10px; color: var(--muted); }
+
+  /* ── LAYOUT ── */
+  .dash { padding: 16px 20px; }
+  .row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .r1 { grid-template-columns: repeat(4, 1fr); }
+  .r2 { grid-template-columns: 1fr 1fr 1fr; }
+  .r3 { grid-template-columns: 2fr 1fr; }
+  .r4 { grid-template-columns: 1fr 1fr; }
+
+  /* ── CARDS ── */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .card-label { font-size: 10px; color: var(--muted); letter-spacing: .6px; text-transform: uppercase; margin-bottom: 8px; }
+  .card-value { font-size: 30px; font-weight: 300; color: var(--text); line-height: 1; }
+  .card-value span { font-size: 14px; color: var(--muted); }
+  .card-sub { font-size: 11px; color: var(--accent); margin-top: 6px; }
+
+  /* ── CHART CONTAINERS ── */
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap canvas { max-width: 100%; }
+
+  /* ── DONUT SECTION ── */
+  .donut-section { display: flex; align-items: center; gap: 16px; height: 140px; }
+  .donut-wrap { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+  .donut-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+  .donut-center-val { font-size: 20px; font-weight: 300; }
+  .donut-center-lbl { font-size: 9px; color: var(--muted); }
+  .legend { display: flex; flex-direction: column; gap: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── GAUGE ── */
+  .gauge-section { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 140px; gap: 4px; }
+  .gauge-wrap { position: relative; width: 140px; height: 70px; overflow: hidden; }
+  .gauge-val { font-size: 26px; font-weight: 300; color: var(--green); }
+  .gauge-sub { font-size: 10px; color: var(--muted); text-align: center; }
+  .gauge-labels { display: flex; justify-content: space-between; width: 140px; font-size: 9px; margin-top: 2px; }
+
+  /* ── STAT ── */
+  .stat-section { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 140px; gap: 8px; }
+  .stat-big { font-size: 40px; font-weight: 300; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 10px; color: var(--muted); text-align: center; }
+  .stat-bar-track { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .stat-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .6s ease; }
+
+  /* ── TABLE ── */
+  .activity-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .activity-table th { color: var(--muted); text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); font-weight: 400; font-size: 10px; letter-spacing: .4px; text-transform: uppercase; }
+  .activity-table td { padding: 6px 8px; border-bottom: 1px solid #1E2336; color: #CCC; vertical-align: middle; }
+  .activity-table tr:last-child td { border: none; }
+  .pill { padding: 2px 7px; border-radius: 3px; font-size: 9px; font-weight: 600; letter-spacing: .3px; }
+  .pill-lead { background: #1A3A5C; color: var(--accent); }
+  .pill-inv  { background: #1A3A1A; color: var(--green); }
+  .pill-fb   { background: #3A2A1A; color: var(--amber); }
+  .pill-err  { background: #3A1A1A; color: var(--red); }
+  .pill-auto { background: #1A2A3A; color: #88CCFF; }
+  .pill-follow { background: #2A1A3A; color: #CC88FF; }
+
+  /* ── STACKED BARS ── */
+  .stacked-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; color: var(--muted); }
+  .stacked-track { flex: 1; height: 10px; background: var(--border); border-radius: 3px; overflow: hidden; display: flex; }
+  .seg-b { background: var(--accent); height: 100%; }
+  .seg-g { background: var(--green); height: 100%; }
+  .stacked-lbl { width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .stacked-num { width: 30px; text-align: right; font-size: 10px; }
+
+  /* ── LOADING / ERROR ── */
+  .loading { display: flex; align-items: center; justify-content: center; height: 80px; color: var(--muted); font-size: 12px; }
+  .error-msg { color: var(--red); font-size: 11px; padding: 8px; }
+
+  @media (max-width: 900px) {
+    .r1 { grid-template-columns: repeat(2,1fr); }
+    .r2, .r3, .r4 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="tde-logo">THE DIGITAL ENGINE</div>
+    <div class="topbar-title">Agency Dashboard</div>
+  </div>
+  <div class="topbar-right">
+    <span class="last-updated" id="lastUpdated">Loading…</span>
+    <div class="filter-pill active" onclick="setRange('month')">This Month</div>
+    <div class="filter-pill" onclick="setRange('week')">This Week</div>
+    <div class="filter-pill" onclick="setRange('90')">90 Days</div>
+    <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="dash">
+
+  <!-- ROW 1: Hero Scorecards -->
+  <div class="row r1">
+    <div class="card">
+      <div class="card-label">Active Clients</div>
+      <div class="card-value" id="sc-clients">—</div>
+      <div class="card-sub">distinct clients this period</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Leads This Period</div>
+      <div class="card-value" id="sc-leads">—</div>
+      <div class="card-sub" id="sc-leads-genuine">— genuine</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Feedback Score</div>
+      <div class="card-value" id="sc-feedback">—<span>%</span></div>
+      <div class="card-sub">avg across all clients</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Invoices Chased</div>
+      <div class="card-value" id="sc-invoices">—</div>
+      <div class="card-sub" id="sc-invoices-paid">— paid</div>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <div class="row r2">
+    <div class="card">
+      <div class="card-label">Leads by Classification</div>
+      <div class="donut-section">
+        <div class="donut-wrap">
+          <canvas id="donutChart"></canvas>
+          <div class="donut-center">
+            <div class="donut-center-val" id="donut-total">—</div>
+            <div class="donut-center-lbl">total</div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div><span id="leg-genuine">Genuine —</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div><span id="leg-spam">Spam —</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div><span id="leg-other">Other —</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Avg Follow-Up Response Time</div>
+      <div class="gauge-section">
+        <canvas id="gaugeChart" width="140" height="70"></canvas>
+        <div class="gauge-val" id="gauge-val">—h</div>
+        <div class="gauge-sub">avg hours to alert</div>
+        <div class="gauge-labels">
+          <span style="color:var(--green)">0–2h ✓</span>
+          <span style="color:var(--amber)">2–4h</span>
+          <span style="color:var(--red)">4–8h</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Follow-Up Alert Rate</div>
+      <div class="stat-section">
+        <div class="stat-big" id="alert-rate">—<span style="font-size:20px">%</span></div>
+        <div class="stat-label">alerts sent / genuine leads</div>
+        <div style="width:100%">
+          <div class="stat-bar-track"><div class="stat-bar-fill" id="alert-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="row r3">
+    <div class="card">
+      <div class="card-label">Enquiry Volume — Last 90 Days</div>
+      <div class="chart-wrap" style="height:130px;margin-top:8px">
+        <canvas id="lineChart"></canvas>
+      </div>
+      <div class="legend" style="flex-direction:row;gap:16px;margin-top:8px" id="line-legend"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Feedback by Client</div>
+      <div class="chart-wrap" style="height:130px;margin-top:8px">
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 4 -->
+  <div class="row r4">
+    <div class="card">
+      <div class="card-label">Invoice Recovery</div>
+      <div id="invoice-bars" style="margin-top:10px">
+        <div class="loading">Loading…</div>
+      </div>
+      <div class="legend" style="flex-direction:row;gap:16px;margin-top:10px">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent);border-radius:2px"></div>Chased</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green);border-radius:2px"></div>Paid</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Last 7 Days — Activity Feed</div>
+      <div id="activity-feed">
+        <div class="loading">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const SHEET_ID      = '1HxGzGRz4OS8p4vWIO3GF3MWp4FMHxGeB5XqHqcDv1GM';
+const METRICS_TAB   = 'daily_metrics';
+const EVENTS_TAB    = 'events_log';
+let   currentRange  = 'month';
+let   metricsData   = [];
+let   eventsData    = [];
+let   donutInstance = null;
+let   lineInstance  = null;
+let   barInstance   = null;
+
+// ─── FETCH SHEET DATA VIA GVIZ ────────────────────────────────────────────────
+async function fetchSheet(tab) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}`;
+  const res  = await fetch(url);
+  const text = await res.text();
+  const json = JSON.parse(text.substring(47).slice(0,-2));
+  const cols = json.table.cols.map(c => c.label);
+  const rows = json.table.rows.map(r =>
+    Object.fromEntries(cols.map((c,i) => [c, r.c[i] ? (r.c[i].v ?? r.c[i].f ?? '') : '']))
+  );
+  return rows;
+}
+
+// ─── DATE FILTERING ───────────────────────────────────────────────────────────
+function filterByRange(rows, range) {
+  const now   = new Date();
+  const cutoff = new Date();
+  if (range === 'week')  cutoff.setDate(now.getDate() - 7);
+  if (range === 'month') cutoff.setDate(1);
+  if (range === '90')    cutoff.setDate(now.getDate() - 90);
+  return rows.filter(r => {
+    if (!r.date) return false;
+    return new Date(r.date) >= cutoff;
+  });
+}
+
+function setRange(r) {
+  currentRange = r;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  renderAll();
+}
+
+// ─── RENDER ALL ───────────────────────────────────────────────────────────────
+function renderAll() {
+  const filtered = filterByRange(metricsData, currentRange);
+  renderScorecards(filtered);
+  renderDonut(filtered);
+  renderGauge(filtered);
+  renderAlertRate(filtered);
+  renderLine(metricsData); // always 90d for line
+  renderBar(filtered);
+  renderInvoiceBars(filtered);
+}
+
+// ─── SCORECARDS ───────────────────────────────────────────────────────────────
+function renderScorecards(rows) {
+  const clients  = new Set(rows.map(r => r.client_id)).size;
+  const leads    = rows.reduce((s,r) => s + (+r.leads_total||0), 0);
+  const genuine  = rows.reduce((s,r) => s + (+r.leads_genuine||0), 0);
+  const fbScores = rows.filter(r => +r.feedback_score_pct > 0).map(r => +r.feedback_score_pct);
+  const fbAvg    = fbScores.length ? (fbScores.reduce((a,b)=>a+b,0)/fbScores.length).toFixed(1) : '—';
+  const invChased= rows.reduce((s,r) => s + (+r.invoices_chased||0), 0);
+  const invPaid  = rows.reduce((s,r) => s + (+r.invoices_paid||0), 0);
+
+  document.getElementById('sc-clients').textContent   = clients;
+  document.getElementById('sc-leads').textContent     = leads;
+  document.getElementById('sc-leads-genuine').textContent = `${genuine} genuine`;
+  document.getElementById('sc-feedback').innerHTML    = `${fbAvg}<span>%</span>`;
+  document.getElementById('sc-invoices').textContent  = invChased;
+  document.getElementById('sc-invoices-paid').textContent = `${invPaid} paid`;
+}
+
+// ─── DONUT ────────────────────────────────────────────────────────────────────
+function renderDonut(rows) {
+  const genuine = rows.reduce((s,r) => s + (+r.leads_genuine||0), 0);
+  const spam    = rows.reduce((s,r) => s + (+r.leads_spam||0), 0);
+  const other   = rows.reduce((s,r) => s + (+r.leads_other||0), 0);
+  const total   = genuine + spam + other;
+
+  document.getElementById('donut-total').textContent = total;
+  document.getElementById('leg-genuine').textContent = `Genuine — ${genuine}`;
+  document.getElementById('leg-spam').textContent    = `Spam — ${spam}`;
+  document.getElementById('leg-other').textContent   = `Other — ${other}`;
+
+  const ctx = document.getElementById('donutChart').getContext('2d');
+  if (donutInstance) donutInstance.destroy();
+  donutInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Genuine','Spam','Other'],
+      datasets: [{ data: [genuine||0.001, spam||0.001, other||0.001],
+        backgroundColor: ['#5588E0','#E05588','#88A0C8'],
+        borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { callbacks: {
+      label: ctx => ` ${ctx.label}: ${ctx.parsed} (${total ? Math.round(ctx.parsed/total*100) : 0}%)`
+    }}}, animation: { duration: 600 } }
+  });
+}
+
+// ─── GAUGE ────────────────────────────────────────────────────────────────────
+function renderGauge(rows) {
+  const vals    = rows.filter(r => +r.avg_hours_to_alert > 0).map(r => +r.avg_hours_to_alert);
+  const avg     = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+  const rounded = Math.round(avg * 10) / 10;
+  const color   = avg < 2 ? '#22C55E' : avg < 4 ? '#F59E0B' : '#EF4444';
+
+  document.getElementById('gauge-val').textContent = rounded ? `${rounded}h` : '—';
+  document.getElementById('gauge-val').style.color = color;
+
+  const ctx = document.getElementById('gaugeChart').getContext('2d');
+  const pct = Math.min(avg / 8, 1);
+  ctx.clearRect(0, 0, 140, 70);
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(70, 70, 55, Math.PI, 0);
+  ctx.strokeStyle = '#2A3050';
+  ctx.lineWidth   = 14;
+  ctx.stroke();
+
+  // Value arc
+  if (avg > 0) {
+    ctx.beginPath();
+    ctx.arc(70, 70, 55, Math.PI, Math.PI + (Math.PI * pct));
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 14;
+    ctx.stroke();
+  }
+}
+
+// ─── ALERT RATE ───────────────────────────────────────────────────────────────
+function renderAlertRate(rows) {
+  const alerts  = rows.reduce((s,r) => s + (+r.follow_up_alerts_sent||0), 0);
+  const genuine = rows.reduce((s,r) => s + (+r.leads_genuine||0), 0);
+  const rate    = genuine > 0 ? Math.round(alerts / genuine * 100) : 0;
+
+  document.getElementById('alert-rate').innerHTML = `${rate}<span style="font-size:20px">%</span>`;
+  document.getElementById('alert-bar').style.width = `${rate}%`;
+}
+
+// ─── LINE CHART ───────────────────────────────────────────────────────────────
+function renderLine(allRows) {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+  const rows   = allRows.filter(r => r.date && new Date(r.date) >= cutoff);
+
+  // Group by client
+  const clients = [...new Set(rows.map(r => r.client_id))];
+  const colors  = ['#5588E0','#E05588','#22C55E','#F59E0B','#88A0C8'];
+
+  // Get all unique dates sorted
+  const dates = [...new Set(rows.map(r => r.date))].sort();
+
+  const datasets = clients.map((cid, i) => {
+    const clientRows = rows.filter(r => r.client_id === cid);
+    const byDate = Object.fromEntries(clientRows.map(r => [r.date, +r.leads_total||0]));
+    return {
+      label: clientRows[0]?.business_name || cid,
+      data:  dates.map(d => byDate[d] ?? null),
+      borderColor: colors[i % colors.length],
+      backgroundColor: 'transparent',
+      tension: 0.4, borderWidth: 2, pointRadius: 0, spanGaps: true
+    };
+  });
+
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  if (lineInstance) lineInstance.destroy();
+  lineInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels: dates, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        x: { ticks: { color: '#8899BB', maxTicksLimit: 8, font: { size: 10 } }, grid: { color: '#2A3050' } },
+        y: { ticks: { color: '#8899BB', font: { size: 10 } }, grid: { color: '#2A3050' }, beginAtZero: true }
+      },
+      animation: { duration: 600 }
+    }
+  });
+
+  // Legend
+  const leg = document.getElementById('line-legend');
+  leg.innerHTML = datasets.map((d,i) =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${colors[i%colors.length]}"></div>${d.label}</div>`
+  ).join('');
+}
+
+// ─── BAR CHART ────────────────────────────────────────────────────────────────
+function renderBar(rows) {
+  const clients = [...new Set(rows.map(r => r.client_id))];
+  const labels  = clients.map(cid => rows.find(r => r.client_id === cid)?.business_name || cid);
+  const happy   = clients.map(cid => rows.filter(r=>r.client_id===cid).reduce((s,r)=>s+(+r.feedback_happy||0),0));
+  const unhappy = clients.map(cid => rows.filter(r=>r.client_id===cid).reduce((s,r)=>s+(+r.feedback_unhappy||0),0));
+
+  const ctx = document.getElementById('barChart').getContext('2d');
+  if (barInstance) barInstance.destroy();
+  barInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Happy',   data: happy,   backgroundColor: '#22C55E', borderRadius: 3 },
+        { label: 'Unhappy', data: unhappy, backgroundColor: '#EF4444', borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#8899BB', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#8899BB', font: { size: 10 } }, grid: { color: '#2A3050' } },
+        y: { ticks: { color: '#8899BB', font: { size: 10 } }, grid: { color: '#2A3050' }, beginAtZero: true }
+      },
+      animation: { duration: 600 }
+    }
+  });
+}
+
+// ─── INVOICE BARS ─────────────────────────────────────────────────────────────
+function renderInvoiceBars(rows) {
+  const clients = [...new Set(rows.map(r => r.client_id))];
+  const el = document.getElementById('invoice-bars');
+
+  if (!clients.length) { el.innerHTML = '<div class="loading">No data</div>'; return; }
+
+  el.innerHTML = clients.map(cid => {
+    const name    = rows.find(r => r.client_id === cid)?.business_name || cid;
+    const chased  = rows.filter(r=>r.client_id===cid).reduce((s,r)=>s+(+r.invoices_chased||0),0);
+    const paid    = rows.filter(r=>r.client_id===cid).reduce((s,r)=>s+(+r.invoices_paid||0),0);
+    const chasedPct = chased > 0 ? Math.min(chased/10*100, 100) : 0;
+    const paidPct   = chased > 0 ? Math.min(paid/10*100, 100)   : 0;
+    return `
+      <div class="stacked-row">
+        <div class="stacked-lbl" title="${name}">${name}</div>
+        <div class="stacked-track">
+          <div class="seg-b" style="width:${chasedPct}%"></div>
+          <div class="seg-g" style="width:${paidPct}%"></div>
+        </div>
+        <div class="stacked-num">${paid}/${chased}</div>
+      </div>`;
+  }).join('');
+}
+
+// ─── ACTIVITY FEED ────────────────────────────────────────────────────────────
+function renderActivityFeed(events) {
+  const el   = document.getElementById('activity-feed');
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
+  const rows = events
+    .filter(e => e.timestamp && new Date(e.timestamp) >= cutoff)
+    .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, 8);
+
+  if (!rows.length) { el.innerHTML = '<div class="loading">No recent events</div>'; return; }
+
+  const pillClass = t => ({
+    'LEAD_RECEIVED':'pill-lead','FOLLOW_UP_ALERT':'pill-follow',
+    'INVOICE_REMINDER':'pill-inv','FEEDBACK_RECEIVED':'pill-fb',
+    'AUTO_REPLY_SENT':'pill-auto','ERROR':'pill-err'
+  }[t] || 'pill-lead');
+
+  const fmt = ts => {
+    const d = new Date(ts);
+    return isNaN(d) ? ts : d.toLocaleString('en-IE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  };
+
+  el.innerHTML = `<table class="activity-table">
+    <thead><tr><th>Time</th><th>Client</th><th>Event</th><th>Outcome</th></tr></thead>
+    <tbody>${rows.map(r => `
+      <tr>
+        <td>${fmt(r.timestamp)}</td>
+        <td>${r.business_name || r.client_id || '—'}</td>
+        <td><span class="pill ${pillClass(r.event_type)}">${(r.event_type||'').replace(/_/g,' ')}</span></td>
+        <td>${r.outcome || '—'}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+// ─── MAIN LOAD ────────────────────────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('lastUpdated').textContent = 'Refreshing…';
+  try {
+    [metricsData, eventsData] = await Promise.all([
+      fetchSheet(METRICS_TAB),
+      fetchSheet(EVENTS_TAB)
+    ]);
+    renderAll();
+    renderActivityFeed(eventsData);
+    document.getElementById('lastUpdated').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-IE',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    document.getElementById('lastUpdated').textContent = 'Error loading data';
+    console.error(e);
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
