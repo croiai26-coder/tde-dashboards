@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TDE Client Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:      #FAF6F0;
+    --card:    #FFFFFF;
+    --border:  #E8E2D9;
+    --accent:  #5588E0;
+    --green:   #22C55E;
+    --red:     #EF4444;
+    --amber:   #F59E0B;
+    --text:    #1A1F2E;
+    --muted:   #888888;
+    --light:   #F0EBE3;
+    --font:    'Inter', 'Roboto', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; }
+
+  /* ── HEADER ── */
+  .header { background: var(--accent); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header-biz { font-size: 18px; font-weight: 500; color: #fff; }
+  .header-biz-sub { font-size: 11px; color: rgba(255,255,255,.65); margin-top: 2px; }
+  .header-right { text-align: right; }
+  .header-powered { font-size: 10px; color: rgba(255,255,255,.6); }
+  .header-period { font-size: 12px; color: rgba(255,255,255,.9); margin-top: 2px; }
+
+  /* ── LAYOUT ── */
+  .dash { padding: 16px 20px; }
+  .row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .r1 { grid-template-columns: repeat(4,1fr); }
+  .r2 { grid-template-columns: 2fr 1fr; }
+  .r3 { grid-template-columns: 1fr 1fr; }
+  .r4 { grid-template-columns: 1fr 1fr; }
+
+  /* ── CARDS ── */
+  .card { background: var(--card); border: 0.5px solid var(--border); border-radius: 8px; padding: 16px; }
+  .card-label { font-size: 10px; color: var(--muted); letter-spacing: .6px; text-transform: uppercase; margin-bottom: 8px; }
+  .card-value { font-size: 28px; font-weight: 300; color: var(--text); line-height: 1; }
+  .delta { font-size: 12px; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+  .delta.up   { color: var(--green); }
+  .delta.down { color: var(--red); }
+  .delta.flat { color: var(--muted); }
+
+  /* ── SPEED CARD ── */
+  .speed-card { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; min-height: 160px; }
+  .speed-pre  { font-size: 12px; color: var(--muted); margin-bottom: 8px; max-width: 180px; line-height: 1.5; }
+  .speed-num  { font-size: 52px; font-weight: 200; color: var(--accent); line-height: 1; }
+  .speed-suf  { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .speed-note { font-size: 11px; color: var(--green); margin-top: 8px; font-weight: 500; }
+
+  /* ── DONUT ── */
+  .donut-section { display: flex; align-items: center; gap: 16px; }
+  .donut-wrap { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+  .donut-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+  .donut-center-val { font-size: 18px; font-weight: 300; color: var(--text); }
+  .donut-center-lbl { font-size: 9px; color: var(--muted); }
+  .legend { display: flex; flex-direction: column; gap: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+  .legend-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── AUTOMATIONS ── */
+  .auto-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+  .auto-table td { padding: 7px 4px; border-bottom: 0.5px solid var(--light); color: var(--text); }
+  .auto-table tr:last-child td { border: none; }
+  .status-pill { display: inline-flex; align-items: center; gap: 4px; background: #ECFDF5; color: #059669; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+  /* ── INVOICE ── */
+  .inv-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .inv-label { width: 55px; font-size: 11px; color: var(--muted); }
+  .inv-track { flex: 1; height: 10px; background: var(--light); border-radius: 3px; overflow: hidden; }
+  .inv-chased { background: var(--accent); height: 100%; border-radius: 3px; transition: width .6s ease; }
+  .inv-paid   { background: var(--green);  height: 100%; border-radius: 3px; transition: width .6s ease; }
+  .inv-num  { width: 28px; font-size: 11px; color: var(--muted); text-align: right; }
+  .recovery-rate { font-size: 14px; font-weight: 500; color: var(--accent); margin-top: 10px; }
+
+  /* ── FOOTER ── */
+  .footer { background: var(--light); border-top: 0.5px solid var(--border); padding: 10px 24px; text-align: center; font-size: 10px; color: var(--muted); line-height: 1.6; }
+
+  /* ── LOADING ── */
+  .loading { display: flex; align-items: center; justify-content: center; height: 60px; color: var(--muted); font-size: 12px; }
+
+  @media (max-width: 900px) {
+    .r1 { grid-template-columns: repeat(2,1fr); }
+    .r2, .r3, .r4 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ CHANGE THIS TO DEPLOY FOR A NEW CLIENT ══════════════════════════════ -->
+<script>
+  const CLIENT_ID = 'murphys-trades'; // ← change this per client
+</script>
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+
+<div class="header">
+  <div>
+    <div class="header-biz" id="biz-name">Loading…</div>
+    <div class="header-biz-sub">Performance Dashboard</div>
+  </div>
+  <div class="header-right">
+    <div class="header-powered">Powered by The Digital Engine</div>
+    <div class="header-period" id="header-period">—</div>
+  </div>
+</div>
+
+<div class="dash">
+
+  <!-- ROW 1: Hero Scorecards -->
+  <div class="row r1">
+    <div class="card">
+      <div class="card-label">Enquiries Handled</div>
+      <div class="card-value" id="sc-enquiries">—</div>
+      <div class="delta" id="d-enquiries">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Leads Identified</div>
+      <div class="card-value" id="sc-genuine">—</div>
+      <div class="delta" id="d-genuine">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Invoices Chased</div>
+      <div class="card-value" id="sc-invoices">—</div>
+      <div class="delta" id="d-invoices">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Feedback Responses</div>
+      <div class="card-value" id="sc-feedback">—</div>
+      <div class="delta" id="d-feedback">—</div>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <div class="row r2">
+    <div class="card">
+      <div class="card-label">Enquiry Volume — Last 90 Days</div>
+      <div style="height:120px;margin-top:8px">
+        <canvas id="lineChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Lead Quality</div>
+      <div class="donut-section" style="margin-top:10px">
+        <div class="donut-wrap">
+          <canvas id="donutChart"></canvas>
+          <div class="donut-center">
+            <div class="donut-center-val" id="donut-total">—</div>
+            <div class="donut-center-lbl">total</div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#5588E0"></div><span id="leg-genuine">Genuine</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#E05588"></div><span id="leg-spam">Spam</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#C8D5E8"></div><span id="leg-other">Other</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="row r3">
+    <div class="card speed-card">
+      <div class="speed-pre">Your enquiries are replied to in under</div>
+      <div class="speed-num" id="speed-num">—</div>
+      <div class="speed-suf">minutes on average</div>
+      <div class="speed-note" id="speed-note"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Feedback Score — Last 12 Weeks</div>
+      <div style="height:120px;margin-top:8px">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 4 -->
+  <div class="row r4">
+    <div class="card">
+      <div class="card-label">Invoice Recovery</div>
+      <div id="invoice-section" style="margin-top:10px">
+        <div class="loading">Loading…</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Your Active Automations</div>
+      <div id="automations-section" style="margin-top:6px">
+        <div class="loading">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  This report is generated automatically by The Digital Engine. Data updates nightly.<br>
+  For questions contact <a href="mailto:hello@thedigitalengine.ie" style="color:var(--accent)">hello@thedigitalengine.ie</a>
+</div>
+
+<script>
+const SHEET_ID    = '1HxGzGRz4OS8p4vWIO3GF3MWp4FMHxGeB5XqHqcDv1GM';
+const METRICS_TAB = 'daily_metrics';
+const EVENTS_TAB  = 'events_log';
+let donutInst = null, lineInst = null, trendInst = null;
+
+async function fetchSheet(tab) {
+  const url  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}`;
+  const res  = await fetch(url);
+  const text = await res.text();
+  const json = JSON.parse(text.substring(47).slice(0,-2));
+  const cols = json.table.cols.map(c => c.label);
+  return json.table.rows.map(r =>
+    Object.fromEntries(cols.map((c,i) => [c, r.c[i] ? (r.c[i].v ?? r.c[i].f ?? '') : '']))
+  );
+}
+
+function getMonthRows(rows) {
+  const now = new Date();
+  return rows.filter(r => {
+    if (!r.date) return false;
+    const d = new Date(r.date);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+}
+
+function getPrevMonthRows(rows) {
+  const now  = new Date();
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return rows.filter(r => {
+    if (!r.date) return false;
+    const d = new Date(r.date);
+    return d.getFullYear() === prev.getFullYear() && d.getMonth() === prev.getMonth();
+  });
+}
+
+function delta(curr, prev, el) {
+  if (prev === 0 && curr === 0) { el.innerHTML = '<span>No data yet</span>'; el.className = 'delta flat'; return; }
+  const diff = curr - prev;
+  if (diff > 0) { el.innerHTML = `↑ ${diff} vs last month`; el.className = 'delta up'; }
+  else if (diff < 0) { el.innerHTML = `↓ ${Math.abs(diff)} vs last month`; el.className = 'delta down'; }
+  else { el.innerHTML = `→ Same as last month`; el.className = 'delta flat'; }
+}
+
+async function loadDashboard() {
+  try {
+    const [allMetrics, allEvents] = await Promise.all([fetchSheet(METRICS_TAB), fetchSheet(EVENTS_TAB)]);
+
+    // Filter to this client
+    const metrics    = allMetrics.filter(r => r.client_id === CLIENT_ID);
+    const events     = allEvents.filter(r => r.client_id === CLIENT_ID);
+    const thisMonth  = getMonthRows(metrics);
+    const lastMonth  = getPrevMonthRows(metrics);
+
+    // Business name
+    const bizName = metrics[0]?.business_name || CLIENT_ID;
+    document.getElementById('biz-name').textContent = bizName;
+    document.title = `${bizName} — TDE Dashboard`;
+
+    // Period label
+    const now = new Date();
+    document.getElementById('header-period').textContent =
+      now.toLocaleString('en-IE',{month:'long',year:'numeric'});
+
+    // ── SCORECARDS ──
+    const cur_enquiries = thisMonth.reduce((s,r)=>s+(+r.leads_total||0),0);
+    const prv_enquiries = lastMonth.reduce((s,r)=>s+(+r.leads_total||0),0);
+    document.getElementById('sc-enquiries').textContent = cur_enquiries;
+    delta(cur_enquiries, prv_enquiries, document.getElementById('d-enquiries'));
+
+    const cur_genuine = thisMonth.reduce((s,r)=>s+(+r.leads_genuine||0),0);
+    const prv_genuine = lastMonth.reduce((s,r)=>s+(+r.leads_genuine||0),0);
+    document.getElementById('sc-genuine').textContent = cur_genuine;
+    delta(cur_genuine, prv_genuine, document.getElementById('d-genuine'));
+
+    const cur_inv = thisMonth.reduce((s,r)=>s+(+r.invoices_chased||0),0);
+    const prv_inv = lastMonth.reduce((s,r)=>s+(+r.invoices_chased||0),0);
+    document.getElementById('sc-invoices').textContent = cur_inv;
+    delta(cur_inv, prv_inv, document.getElementById('d-invoices'));
+
+    const cur_fb = thisMonth.reduce((s,r)=>s+(+r.feedback_happy||0)+(+r.feedback_unhappy||0),0);
+    const prv_fb = lastMonth.reduce((s,r)=>s+(+r.feedback_happy||0)+(+r.feedback_unhappy||0),0);
+    document.getElementById('sc-feedback').textContent = cur_fb;
+    delta(cur_fb, prv_fb, document.getElementById('d-feedback'));
+
+    // ── LINE CHART ──
+    const cutoff90 = new Date(); cutoff90.setDate(cutoff90.getDate()-90);
+    const last90   = metrics.filter(r => r.date && new Date(r.date) >= cutoff90);
+    const dates    = [...new Set(last90.map(r=>r.date))].sort();
+    const byDate   = Object.fromEntries(last90.map(r=>[r.date,+r.leads_total||0]));
+
+    const lineCtx = document.getElementById('lineChart').getContext('2d');
+    if (lineInst) lineInst.destroy();
+    lineInst = new Chart(lineCtx, {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [{
+          data: dates.map(d=>byDate[d]??0),
+          borderColor: '#5588E0', backgroundColor: 'rgba(85,136,224,.08)',
+          fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#AAA', maxTicksLimit: 6, font:{size:10} }, grid: { color: '#F0EBE3' } },
+          y: { ticks: { color: '#AAA', font:{size:10} }, grid: { color: '#F0EBE3' }, beginAtZero: true }
+        }
+      }
+    });
+
+    // ── DONUT ──
+    const g = thisMonth.reduce((s,r)=>s+(+r.leads_genuine||0),0);
+    const sp= thisMonth.reduce((s,r)=>s+(+r.leads_spam||0),0);
+    const ot= thisMonth.reduce((s,r)=>s+(+r.leads_other||0),0);
+    const tot = g+sp+ot;
+    document.getElementById('donut-total').textContent = tot;
+    document.getElementById('leg-genuine').textContent = `Genuine — ${g}`;
+    document.getElementById('leg-spam').textContent    = `Spam — ${sp}`;
+    document.getElementById('leg-other').textContent   = `Other — ${ot}`;
+
+    const dCtx = document.getElementById('donutChart').getContext('2d');
+    if (donutInst) donutInst.destroy();
+    donutInst = new Chart(dCtx, {
+      type: 'doughnut',
+      data: { labels:['Genuine','Spam','Other'], datasets:[{
+        data:[g||0.001,sp||0.001,ot||0.001],
+        backgroundColor:['#5588E0','#E05588','#C8D5E8'],
+        borderWidth:0
+      }]},
+      options:{ cutout:'68%', plugins:{ legend:{display:false} }, animation:{duration:600} }
+    });
+
+    // ── SPEED ──
+    const avgHours = thisMonth.filter(r=>+r.avg_hours_to_alert>0).map(r=>+r.avg_hours_to_alert);
+    const avgH = avgHours.length ? avgHours.reduce((a,b)=>a+b,0)/avgHours.length : 0;
+    const mins = Math.round(avgH * 60);
+    document.getElementById('speed-num').textContent = mins || '—';
+    if (mins > 0 && mins < 240) {
+      document.getElementById('speed-note').textContent = '✓ Well within your 4-hour target';
+    } else if (mins >= 240) {
+      document.getElementById('speed-note').style.color = '#F59E0B';
+      document.getElementById('speed-note').textContent = '⚠ Above 4-hour target';
+    }
+
+    // ── FEEDBACK TREND ──
+    const cutoff12w = new Date(); cutoff12w.setDate(cutoff12w.getDate()-84);
+    const last12w   = metrics.filter(r=>r.date && new Date(r.date)>=cutoff12w);
+    const wkDates   = [...new Set(last12w.map(r=>r.date))].sort();
+    const scoreByDate= Object.fromEntries(last12w.map(r=>[r.date,+r.feedback_score_pct||null]));
+
+    const tCtx = document.getElementById('trendChart').getContext('2d');
+    if (trendInst) trendInst.destroy();
+    trendInst = new Chart(tCtx, {
+      type: 'line',
+      data: {
+        labels: wkDates,
+        datasets: [
+          { label:'Feedback Score', data:wkDates.map(d=>scoreByDate[d]??null),
+            borderColor:'#5588E0', backgroundColor:'rgba(85,136,224,.06)', fill:true, tension:0.4, borderWidth:2, pointRadius:2, spanGaps:true },
+          { label:'Target 90%', data:wkDates.map(()=>90),
+            borderColor:'#22C55E', borderWidth:1, borderDash:[4,3], pointRadius:0, fill:false }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ color:'#888', font:{size:10} } } },
+        scales: {
+          x:{ ticks:{color:'#AAA',maxTicksLimit:6,font:{size:10}}, grid:{color:'#F0EBE3'} },
+          y:{ min:0, max:100, ticks:{color:'#AAA',font:{size:10}}, grid:{color:'#F0EBE3'} }
+        }
+      }
+    });
+
+    // ── INVOICE RECOVERY ──
+    const chased = thisMonth.reduce((s,r)=>s+(+r.invoices_chased||0),0);
+    const paid   = thisMonth.reduce((s,r)=>s+(+r.invoices_paid||0),0);
+    const maxVal = Math.max(chased, 1);
+    const rate   = chased > 0 ? Math.round(paid/chased*100) : 0;
+
+    document.getElementById('invoice-section').innerHTML = `
+      <div class="inv-row">
+        <div class="inv-label">Chased</div>
+        <div class="inv-track"><div class="inv-chased" style="width:${Math.min(chased/maxVal*100,100)}%"></div></div>
+        <div class="inv-num">${chased}</div>
+      </div>
+      <div class="inv-row">
+        <div class="inv-label">Paid</div>
+        <div class="inv-track"><div class="inv-paid" style="width:${Math.min(paid/maxVal*100,100)}%"></div></div>
+        <div class="inv-num">${paid}</div>
+      </div>
+      <div class="recovery-rate">${rate}% recovery rate</div>`;
+
+    // ── ACTIVE AUTOMATIONS (from events_log, last 7 days) ──
+    const cutoff7 = new Date(); cutoff7.setDate(cutoff7.getDate()-7);
+    const recentEvents = events.filter(e=>e.timestamp && new Date(e.timestamp)>=cutoff7);
+    const eventTypes = [...new Set(recentEvents.map(e=>e.event_type))];
+
+    const autoNames = {
+      'AUTO_REPLY_SENT':    'Enquiry auto-reply',
+      'FOLLOW_UP_ALERT':    'Follow-up alert',
+      'INVOICE_REMINDER':   'Invoice chaser',
+      'FEEDBACK_RECEIVED':  'Feedback capture',
+      'LEAD_RECEIVED':      'Lead detection',
+    };
+
+    const rows_auto = eventTypes.length
+      ? eventTypes.filter(t=>autoNames[t]).map(t=>`
+          <tr>
+            <td>${autoNames[t]||t}</td>
+            <td><span class="status-pill"><span class="status-dot"></span>Active</span></td>
+          </tr>`)
+      : [`<tr><td colspan="2" style="color:var(--muted);font-size:11px">No events logged yet — automations will appear here once they fire.</td></tr>`];
+
+    document.getElementById('automations-section').innerHTML = `
+      <table class="auto-table"><tbody>${rows_auto.join('')}</tbody></table>`;
+
+  } catch(e) {
+    console.error(e);
+    document.getElementById('biz-name').textContent = 'Error loading data';
+  }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
