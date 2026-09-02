@@ -83,6 +83,64 @@ in the prototype: **Quick Notes** (autosaves to `localStorage`), and the
 
 ---
 
+## Life OS (`life-os.html`)
+
+A personal capture-and-prioritise app, separate from the agency dashboard. Open
+`life-os.html` in any browser — no build step, no server, no account. Everything
+is stored in that browser's `localStorage`; nothing leaves the machine.
+
+**The idea:** dump anything into the bar at the top without thinking about where
+it goes. The app works out what matters and shows you three things to do next,
+with the reason it picked them.
+
+### Capture syntax
+
+Everything is optional — a bare line is a perfectly good item.
+
+| You type | It picks up |
+| --- | --- |
+| `fri`, `tomorrow`, `12/09`, `sep 14`, `in 3 days`, `eow`, `next week` | a due date (day/month order) |
+| `!` `!!` `!!!` | importance |
+| `#work` `#health` | the area it belongs to |
+| `~20m` `~2h` | how long it'll take |
+| `@sarah` | who's involved |
+| `idea: …` / `note: …` | files it away instead of as a task |
+| `someday: …` | parks it for a month |
+
+So `call the accountant fri !! ~20m #work` becomes a task due Friday, flagged
+important, 20 minutes, filed under work. Hit **dump** to paste a whole brain
+dump — one thought per line, all parsed at once.
+
+### How it decides priority
+
+Each open task scores on four things, and the top three are surfaced with the
+reason attached (`3 days overdue · you flagged it important`):
+
+- **Urgency** — overdue outranks everything and keeps climbing; today, tomorrow and this week step down from there.
+- **Importance** — your `!` flags.
+- **Staleness** — undated things you keep scrolling past slowly float up, so nothing rots quietly.
+- **Effort** — sub-20-minute jobs get a nudge; 3-hour blocks get a small penalty, because they need scheduling rather than a nudge.
+
+Pinning (`★`) overrides the lot.
+
+### Views
+
+- **Focus** — the three to do now, then overdue, quick wins, and the rest in order.
+- **Everything** — searchable, filterable by area.
+- **Notes & ideas** — the stuff that isn't a task.
+- **Review** — items carried 2+ weeks with no date ("do it, date it, or drop it"), where your open load sits by area, what's parked, and the week's numbers.
+- **Done** — completed history.
+
+### Everything else
+
+Keyboard-first (`?` for the full list): `/` to capture, `j`/`k` to move, `x` to
+complete, `s` to snooze, `e` to edit, `1`–`3` for importance, `u` to undo — every
+destructive action is undoable. Light/dark toggle. `↓`/`↑` in the header export
+and re-import a JSON backup, which is also how you move your data to another
+browser or machine.
+
+---
+
 The repo also contains two earlier standalone HTML dashboards
 (`tde-agency-dashboard.html`, `tde-client-dashboard.html`) from a previous design
 round; they are independent of this app.
