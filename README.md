@@ -83,15 +83,21 @@ in the prototype: **Quick Notes** (autosaves to `localStorage`), and the
 
 ---
 
-## Life OS (`life-os.html`)
+## Life OS
 
-A personal capture-and-prioritise app, separate from the agency dashboard. Open
-`life-os.html` in any browser — no build step, no server, no account. Everything
-is stored in that browser's `localStorage`; nothing leaves the machine.
+A personal capture-and-prioritise app. Dump anything into one bar without
+thinking about where it goes; it works out what matters next and tells you why.
 
-**The idea:** dump anything into the bar at the top without thinking about where
-it goes. The app works out what matters and shows you three things to do next,
-with the reason it picked them.
+It ships in two forms:
+
+| | Where | Data | Needs |
+| --- | --- | --- | --- |
+| **Hosted** | `/life` on the deployed site | localStorage + Notion sync | env vars below |
+| **Standalone** | `life-os.html`, opened from disk | localStorage only | nothing |
+
+The standalone file is the offline version — no build, no server, no account,
+works on a plane. The hosted route is the same app plus everything that needs a
+server: your calendar, your business projects, and the Claude session board.
 
 ### Capture syntax
 
@@ -111,33 +117,77 @@ So `call the accountant fri !! ~20m #work` becomes a task due Friday, flagged
 important, 20 minutes, filed under work. Hit **dump** to paste a whole brain
 dump — one thought per line, all parsed at once.
 
+A date written without a year that has *just* passed (`30/08` typed in early
+September) reads as overdue, not as next year's. It only rolls forward once
+it's more than 60 days behind.
+
 ### How it decides priority
 
-Each open task scores on four things, and the top three are surfaced with the
-reason attached (`3 days overdue · you flagged it important`):
+`lib/life/score.ts` — five named components, so the ordering is always
+explainable rather than a black box. Each card shows the reason that won:
 
 - **Urgency** — overdue outranks everything and keeps climbing; today, tomorrow and this week step down from there.
 - **Importance** — your `!` flags.
 - **Staleness** — undated things you keep scrolling past slowly float up, so nothing rots quietly.
 - **Effort** — sub-20-minute jobs get a nudge; 3-hour blocks get a small penalty, because they need scheduling rather than a nudge.
+- **Fit** *(hosted only)* — with a calendar connected, work that fits the gap before your next meeting gets promoted, and anything longer than the time left in the day is demoted and marked *needs a block*.
 
 Pinning (`★`) overrides the lot.
 
 ### Views
 
-- **Focus** — the three to do now, then overdue, quick wins, and the rest in order.
+- **Focus** — today's schedule and what's left of the day, anything waiting on you, then the three to do now, overdue, quick wins, and the rest in order.
+- **Business** — every Claude session working on TDE or The Once Over, and live Projects & Delivery rows.
 - **Everything** — searchable, filterable by area.
 - **Notes & ideas** — the stuff that isn't a task.
 - **Review** — items carried 2+ weeks with no date ("do it, date it, or drop it"), where your open load sits by area, what's parked, and the week's numbers.
 - **Done** — completed history.
 
+### Configuration (hosted)
+
+Every variable is optional and each one degrades on its own: with none set,
+`/life` still runs fully as a local-only app. See `.env.example`.
+
+| Var | Turns on |
+| --- | --- |
+| `NOTION_DB_LIFE_ITEMS` | Notion sync, so your phone and laptop agree |
+| `NOTION_DB_SESSIONS` | the Claude session board |
+| `NOTION_DB_PROJECTS` | live Projects & Delivery rows |
+| `LIFE_ICS_URLS` | today's schedule and capacity-aware prioritising |
+
+`LIFE_ICS_URLS` is a comma-separated list of `Label|https://…ics` entries,
+using each calendar's **secret** iCal address (Google Calendar → Settings →
+pick calendar → "Secret address in iCal format"). Treat those URLs like
+passwords: they stay server-side and the browser never sees them.
+
+### How the sync works
+
+localStorage is the write path and the source of truth for *this* browser, so
+capture never waits on the network. A background loop reconciles with Notion
+every minute when there's anything queued, and on window focus.
+
+Conflicts resolve per item on the `updated` timestamp — last write wins. That's
+the right trade for a personal inbox: the failure mode is a stale edit losing to
+a fresher one, never a lost item. Deletes are soft-marked so they propagate
+instead of the item reappearing on the next pull. The footer always shows the
+real state (`Synced`, `3 waiting to sync`, `Sync problem — saved locally`).
+
+### The session board
+
+`🤖 Claude Sessions — Status` in Notion is refreshed by a scheduled Claude
+routine each morning, which reads every session's own status summary and writes
+one row per session. So the panel is a **daily snapshot, not a live feed**, and
+the summaries are auto-generated — a decent nudge, not gospel. Anything marked
+*waiting on you* surfaces on the Focus tab with a one-click "add to my list".
+
+That routine needs `NOTION_TOKEN` set on the Claude Code *environment* (not just
+in Vercel), because it talks to the Notion REST API directly.
+
 ### Everything else
 
 Keyboard-first (`?` for the full list): `/` to capture, `j`/`k` to move, `x` to
 complete, `s` to snooze, `e` to edit, `1`–`3` for importance, `u` to undo — every
-destructive action is undoable. Light/dark toggle. `↓`/`↑` in the header export
-and re-import a JSON backup, which is also how you move your data to another
-browser or machine.
+destructive action is undoable. Light/dark toggle. `↓` exports a JSON backup.
 
 ---
 
