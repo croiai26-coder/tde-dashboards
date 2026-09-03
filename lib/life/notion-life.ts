@@ -36,9 +36,26 @@ const rDate = (p: Props, k: string): string | null => p?.[k]?.date?.start ?? nul
 const rCheck = (p: Props, k: string): boolean => !!p?.[k]?.checkbox;
 const rUrl = (p: Props, k: string): string => p?.[k]?.url ?? "";
 
-const wText = (s: string) => ({ rich_text: s ? [{ text: { content: s.slice(0, 1900) } }] : [] });
-const wTitle = (s: string) => ({ title: [{ text: { content: (s || "(untitled)").slice(0, 1900) } }] });
+// Writers coerce rather than trust: an item can arrive from a hand-edited JSON
+// backup or a half-migrated localStorage, and one bad field used to throw
+// mid-batch and 500 the whole sync, leaving the queue permanently stuck.
+const wText = (v: unknown) => {
+  const s = v == null ? "" : String(v);
+  return { rich_text: s ? [{ text: { content: s.slice(0, 1900) } }] : [] };
+};
+const wTitle = (v: unknown) => {
+  const s = (v == null ? "" : String(v)).trim() || "(untitled)";
+  return { title: [{ text: { content: s.slice(0, 1900) } }] };
+};
 const wDate = (s: string | null) => ({ date: s ? { start: s } : null });
+
+/** An epoch-ms value as a plain ISO date, or null if it isn't a real date. */
+const wDay = (ms: unknown) => {
+  const d = new Date(typeof ms === "number" ? ms : NaN);
+  return wDate(isNaN(+d) ? null : d.toISOString().slice(0, 10));
+};
+
+const wNum = (v: unknown) => ({ number: typeof v === "number" && isFinite(v) ? v : null });
 
 async function queryAll(databaseId: string, filter?: any): Promise<any[]> {
   if (!notion) return [];
@@ -158,18 +175,19 @@ function rowToItem(r: any): Item {
 function itemToProps(it: Item): Props {
   return {
     Name: wTitle(it.text),
-    Kind: { select: { name: it.kind } },
+    // Notion rejects an unknown select option, so fall back rather than fail.
+    Kind: { select: { name: ["task", "note", "idea"].includes(it.kind) ? it.kind : "task" } },
     Done: { checkbox: !!it.done },
     Due: wDate(it.due),
     Area: wText(it.area ?? ""),
-    Importance: { number: it.importance ?? 0 },
-    "Effort mins": { number: it.effort ?? null },
+    Importance: { number: typeof it.importance === "number" ? it.importance : 0 },
+    "Effort mins": wNum(it.effort),
     "Snooze until": wDate(it.snoozeUntil),
     Pinned: { checkbox: !!it.pinned },
     People: wText((it.people ?? []).join(" ")),
     "Local ID": wText(it.id),
-    Captured: wDate(new Date(it.created).toISOString().slice(0, 10)),
-    Updated: wDate(new Date(it.updated).toISOString().slice(0, 10)),
+    Captured: wDay(it.created),
+    Updated: wDay(it.updated),
   };
 }
 

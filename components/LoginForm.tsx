@@ -2,6 +2,25 @@
 
 import { useEffect, useState } from "react";
 
+/** Where to go after signing in.
+ *
+ *  Only a same-origin destination is ever followed. Prefix checks are not
+ *  enough here: the browser normalises a leading "/\" to "//", so "/\host"
+ *  looks like a path but navigates off-site. Parsing against our own origin and
+ *  comparing is the only check that catches every form of it.
+ */
+export function safeNext(next: string | null, origin?: string): string {
+  const here = origin ?? window.location.origin;
+  if (!next) return "/life";
+  try {
+    const u = new URL(next, here);
+    if (u.origin !== here) return "/life";
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return "/life";
+  }
+}
+
 export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,11 +46,9 @@ export default function LoginForm() {
       });
       const json = await res.json();
       if (json?.ok) {
-        const next = new URLSearchParams(window.location.search).get("next");
-        // Only ever follow a same-site path — an absolute URL here would be an
-        // open redirect for anyone who can hand you a link.
-        const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : "/life";
-        window.location.href = safe;
+        window.location.href = safeNext(
+          new URLSearchParams(window.location.search).get("next"),
+        );
         return;
       }
       setError(json?.error ?? "That didn't work.");
