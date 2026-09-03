@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getEvents } from "@/lib/life/calendar";
 import { getSessions, getProjects } from "@/lib/life/notion-life";
-import { COOKIE, verifyToken, privateDataAllowed, passwordSet } from "@/lib/life/auth";
+import { COOKIE, verifyToken, liveDataAllowed, passwordSet } from "@/lib/auth";
 import type { LiveData } from "@/lib/life/types";
 
 // Everything the server contributes to /life, in one round trip: the calendar,
@@ -21,14 +21,14 @@ const EMPTY: LiveData = { events: [], sessions: [], projects: [], errors: [] };
 
 export async function GET() {
   const authed = await verifyToken(cookies().get(COOKIE)?.value);
-  if (!privateDataAllowed(authed)) {
+  if (!liveDataAllowed(authed)) {
     return NextResponse.json(
       {
         ...EMPTY,
         locked: true,
         errors: passwordSet()
           ? ["Session expired — reload to sign in again."]
-          : ["Calendar and business panels are off until LIFE_PASSWORD is set. This deployment is public, so the server won't serve private data unprotected."],
+          : ["Calendar and business panels are off until a site password is set. This deployment is public, so the server won't serve private data unprotected."],
       },
       { headers: { "Cache-Control": "no-store, max-age=0" } },
     );

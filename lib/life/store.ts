@@ -150,7 +150,7 @@ export async function syncOnce(
 function bounceIfUnauthorised(status: number): boolean {
   if (status !== 401) return false;
   if (typeof window !== "undefined" && !window.location.pathname.endsWith("/login")) {
-    window.location.href = "/life/login?next=" + encodeURIComponent("/life");
+    window.location.href = "/login?next=" + encodeURIComponent("/life");
   }
   return true;
 }

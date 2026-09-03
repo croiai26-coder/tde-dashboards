@@ -106,8 +106,17 @@ export interface ViewModel {
   sops: { name: string; color: string; bg: string }[];
 }
 
-export async function buildViewModel(): Promise<ViewModel> {
+/** Builds the dashboard view model.
+ *
+ *  `live` is the gate: when false, the Notion getters are never called and
+ *  every section falls back to its seed state. The page passes false unless the
+ *  request is authenticated, so an unprotected deployment cannot serve real
+ *  business data — it shows the same pre-revenue prototype state it ships with.
+ */
+export async function buildViewModel(live = true): Promise<ViewModel> {
   const accent = config.accent;
+
+  const nothing = async () => null;
 
   const [
     clientsR,
@@ -120,18 +129,25 @@ export async function buildViewModel(): Promise<ViewModel> {
     contentR,
     servicesR,
     goalsR,
-  ] = await Promise.all([
-    getClients(),
-    getPipeline(),
-    getBuilds(),
-    getSubscriptions(),
-    getInvoices(),
-    getTasks(),
-    getMeetings(),
-    getContent(),
-    getServices(),
-    getGoals(),
-  ]);
+  ] = await Promise.all(
+    live
+      ? [
+          getClients(),
+          getPipeline(),
+          getBuilds(),
+          getSubscriptions(),
+          getInvoices(),
+          getTasks(),
+          getMeetings(),
+          getContent(),
+          getServices(),
+          getGoals(),
+        ]
+      : [
+          nothing(), nothing(), nothing(), nothing(), nothing(),
+          nothing(), nothing(), nothing(), nothing(), nothing(),
+        ],
+  );
 
   const clients = clientsR ?? [];
   const pipeline = pipelineR ?? [];

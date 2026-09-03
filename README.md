@@ -13,6 +13,35 @@ Built with **Next.js (App Router) + React + TypeScript**, read-only
 > €0 MRR, €94 recurring out from tool subscriptions, the setup checklist, etc.).
 > Each section becomes live the moment you point it at a Notion database.
 
+## Access
+
+This repository and the deployment are **public**, so the whole site sits behind
+one password. Set `SITE_PASSWORD` (`LIFE_PASSWORD` is accepted as an alias) and
+you get a login page, an HttpOnly signed cookie good for 30 days, and a sign-out
+button. Vercel's own password protection is a paid feature; this works on any plan.
+
+The gate is built so the unsafe state is **unreachable rather than merely
+discouraged**. With no password set, both pages still render — but the server
+fetches nothing real:
+
+| | Password unset | Signed out | Signed in |
+| --- | --- | --- | --- |
+| `/` (HQ dashboard) | seed state, no Notion calls | redirect to `/login` | live |
+| `/life` | local-only, sync refused | redirect to `/login` | live |
+| `/api/life/*` | refuses, explains why | `401` | live |
+
+You cannot expose your data by forgetting to switch protection on. `middleware.ts`
+guards every route, and the things that actually fetch — `app/page.tsx` and
+`app/api/life/*` — re-check the cookie themselves rather than trusting the
+middleware, since they are the only code that can leak anything.
+
+Passwords compare as HMAC digests in constant time, tokens are signed with
+HMAC-SHA256 via Web Crypto (one implementation for Edge middleware and Node
+routes alike), the post-login redirect only follows same-site paths, and a failed
+attempt costs a deliberate 600 ms — serverless rules out a reliable shared rate
+limit, so each guess is made to cost something. That is not a substitute for a
+long passphrase.
+
 ## Quick start
 
 ```bash
@@ -143,26 +172,6 @@ Pinning (`★`) overrides the lot.
 - **Review** — items carried 2+ weeks with no date ("do it, date it, or drop it"), where your open load sits by area, what's parked, and the week's numbers.
 - **Done** — completed history.
 
-### Access (hosted)
-
-This repository and the deployment are **public**, so `/life` sits behind a
-password: set `LIFE_PASSWORD` and you get a login page, an HttpOnly signed
-cookie good for 30 days, and a sign-out button in the header.
-
-The gate is designed so the unsafe state is unreachable rather than merely
-discouraged. With `LIFE_PASSWORD` unset, `/life` still works — but the API
-routes refuse to serve *any* Notion or calendar data, regardless of what else
-is configured. You cannot expose your inbox by forgetting to turn the password
-on. `middleware.ts` guards the routes, and `app/api/life/*` re-checks the cookie
-itself rather than trusting the middleware, so the one thing that can leak
-private data does its own checking.
-
-Passwords are compared through HMAC digests in constant time, tokens are signed
-with HMAC-SHA256, and a failed attempt costs a deliberate 600 ms — serverless
-rules out a reliable shared rate limit, so each guess is made to cost something.
-
-Note this covers `/life` only. The agency dashboard at `/` remains public.
-
 ### Configuration (hosted)
 
 Every variable is optional and each one degrades on its own: with none set,
@@ -170,7 +179,7 @@ Every variable is optional and each one degrades on its own: with none set,
 
 | Var | Turns on |
 | --- | --- |
-| `LIFE_PASSWORD` | the login gate — **required before any of the below do anything** |
+| `SITE_PASSWORD` | the login gate — **required before any of the below do anything** |
 | `NOTION_DB_LIFE_ITEMS` | Notion sync, so your phone and laptop agree |
 | `NOTION_DB_SESSIONS` | the Claude session board |
 | `NOTION_DB_PROJECTS` | live Projects & Delivery rows |

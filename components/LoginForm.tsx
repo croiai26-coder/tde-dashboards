@@ -20,7 +20,7 @@ export default function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/life/auth", {
+      const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -28,7 +28,10 @@ export default function LoginForm() {
       const json = await res.json();
       if (json?.ok) {
         const next = new URLSearchParams(window.location.search).get("next");
-        window.location.href = next && next.startsWith("/") ? next : "/life";
+        // Only ever follow a same-site path — an absolute URL here would be an
+        // open redirect for anyone who can hand you a link.
+        const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : "/life";
+        window.location.href = safe;
         return;
       }
       setError(json?.error ?? "That didn't work.");
@@ -40,7 +43,7 @@ export default function LoginForm() {
 
   return (
     <div className="wrap" style={{ maxWidth: 380, paddingTop: "18vh" }}>
-      <div className="greet" style={{ marginBottom: 6 }}>Life OS</div>
+      <div className="greet" style={{ marginBottom: 6 }}>The Digital Engine</div>
       <div className="subgreet" style={{ marginBottom: 22 }}>
         This one&rsquo;s private.
       </div>
@@ -67,7 +70,7 @@ export default function LoginForm() {
         <div className="notice" style={{ marginTop: 14 }}>{error}</div>
       )}
       <div className="capture-hint" style={{ marginTop: 18, display: "flex" }}>
-        <span>Your items stay in this browser. The password guards what the server fetches for you — your calendar, Notion and business boards.</span>
+        <span>Guards everything the server fetches for you — the HQ dashboard, your calendar, Notion and the business boards.</span>
       </div>
     </div>
   );

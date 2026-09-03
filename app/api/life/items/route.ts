@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { pullItems, pushItems, syncConfigured } from "@/lib/life/notion-life";
-import { COOKIE, verifyToken, privateDataAllowed, passwordSet } from "@/lib/life/auth";
+import { COOKIE, verifyToken, liveDataAllowed, passwordSet } from "@/lib/auth";
 import type { Item } from "@/lib/life/types";
 
 // The hybrid sync endpoint. The browser stays the fast path — it writes to
@@ -17,7 +17,7 @@ export const revalidate = 0;
 
 async function gate() {
   const authed = await verifyToken(cookies().get(COOKIE)?.value);
-  if (privateDataAllowed(authed)) return null;
+  if (liveDataAllowed(authed)) return null;
   return NextResponse.json({
     configured: false,
     locked: true,
@@ -25,7 +25,7 @@ async function gate() {
     written: [],
     error: passwordSet()
       ? "Session expired — reload to sign in again."
-      : "Notion sync is off until LIFE_PASSWORD is set. Your items are saved in this browser.",
+      : "Notion sync is off until a site password is set. Your items are saved in this browser.",
   });
 }
 

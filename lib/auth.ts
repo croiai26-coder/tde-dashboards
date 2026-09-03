@@ -1,19 +1,20 @@
 // ─────────────────────────────────────────────────────────────
-// Gate for /life.
+// Gate for the whole site.
 //
-// The deployed site is public, so anything that reaches out to Notion or the
-// calendar has to sit behind a password. The invariant this file exists to
-// enforce: private data is only ever served to an authenticated request, and
-// that is checked in code rather than left to whoever remembers to configure it.
+// The repository and the deployment are public, so anything that reaches out
+// to Notion or the calendar has to sit behind a password. The invariant this
+// file exists to enforce: real data is only ever served to an authenticated
+// request, and that is checked in code rather than left to whoever remembers
+// to configure it.
 //
-// Set LIFE_PASSWORD to turn the gate on. With it unset, /life still works as a
-// local-only app (your items never leave the browser) but the server refuses to
-// serve any Notion or calendar data at all — see `privateDataAllowed`.
+// Set SITE_PASSWORD (LIFE_PASSWORD is accepted as an alias) to turn the gate
+// on. With it unset both pages still render — /life as a local-only app, / in
+// its seed state — but the server fetches nothing real. See `liveDataAllowed`.
 //
 // Uses Web Crypto so the same code runs in Edge middleware and in Node routes.
 // ─────────────────────────────────────────────────────────────
 
-export const COOKIE = "life_auth";
+export const COOKIE = "tde_auth";
 const TTL_DAYS = 30;
 
 const enc = new TextEncoder();
@@ -40,21 +41,26 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export const passwordSet = (): boolean => !!process.env.LIFE_PASSWORD;
+/** SITE_PASSWORD is the name; LIFE_PASSWORD is kept working as an alias so an
+ *  already-configured deployment doesn't silently lose its gate. */
+export const sitePassword = (): string | undefined =>
+  process.env.SITE_PASSWORD || process.env.LIFE_PASSWORD;
 
-/** True when the server may serve Notion/calendar data on this request.
+export const passwordSet = (): boolean => !!sitePassword();
+
+/** True when the server may fetch real Notion/calendar data for this request.
  *  Without a password configured the answer is always no, which makes the
  *  dangerous combination — public URL plus real data — unreachable. */
-export const privateDataAllowed = (authed: boolean): boolean => passwordSet() && authed;
+export const liveDataAllowed = (authed: boolean): boolean => passwordSet() && authed;
 
 export async function issueToken(): Promise<string> {
-  const secret = process.env.LIFE_PASSWORD!;
+  const secret = sitePassword()!;
   const exp = String(Date.now() + TTL_DAYS * 86_400_000);
   return `${exp}.${await hmac(secret, exp)}`;
 }
 
 export async function verifyToken(token: string | undefined): Promise<boolean> {
-  const secret = process.env.LIFE_PASSWORD;
+  const secret = sitePassword();
   if (!secret || !token) return false;
   const dot = token.lastIndexOf(".");
   if (dot < 1) return false;
@@ -65,7 +71,7 @@ export async function verifyToken(token: string | undefined): Promise<boolean> {
 }
 
 export async function checkPassword(candidate: string): Promise<boolean> {
-  const secret = process.env.LIFE_PASSWORD;
+  const secret = sitePassword();
   if (!secret) return false;
   // Compare digests rather than the raw strings: equal length, no early exit.
   const a = await hmac(secret, "pw:" + candidate);

@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { buildViewModel } from "@/lib/data";
+import { COOKIE, verifyToken, liveDataAllowed } from "@/lib/auth";
 import { bg, fontSans, c4 } from "@/lib/theme";
 import TopBar from "@/components/TopBar";
 import Hero from "@/components/Hero";
@@ -20,11 +22,15 @@ import Tasks from "@/components/Tasks";
 import JumpTo from "@/components/JumpTo";
 import Sops from "@/components/Sops";
 
-// Re-fetch Notion data at most once per minute (ISR).
-export const revalidate = 60;
+// Rendered per request: the dashboard only fetches real Notion data for an
+// authenticated visitor, so it can't be cached or prerendered. Signed out (or
+// with no site password configured) it renders the seed state instead — the
+// same one the design prototype ships with.
+export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const vm = await buildViewModel();
+  const authed = await verifyToken(cookies().get(COOKIE)?.value);
+  const vm = await buildViewModel(liveDataAllowed(authed));
 
   return (
     <div

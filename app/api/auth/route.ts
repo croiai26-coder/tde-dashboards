@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { COOKIE, checkPassword, issueToken, cookieOptions, passwordSet } from "@/lib/life/auth";
+import { COOKIE, checkPassword, issueToken, cookieOptions, passwordSet } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 

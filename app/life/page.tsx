@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import LifeApp from "@/components/life/LifeApp";
-import { passwordSet } from "@/lib/life/auth";
+import { passwordSet } from "@/lib/auth";
 import "./life.css";
 
 export const metadata: Metadata = {

@@ -364,8 +364,8 @@ export default function LifeApp({ name, gated }: { name: string; gated: boolean 
                 className="icon-btn"
                 title="Sign out"
                 onClick={async () => {
-                  await fetch("/api/life/auth", { method: "DELETE" });
-                  window.location.href = "/life/login";
+                  await fetch("/api/auth", { method: "DELETE" });
+                  window.location.href = "/login";
                 }}
               >
                 ⏻
