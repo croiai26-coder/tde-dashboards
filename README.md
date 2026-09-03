@@ -143,6 +143,26 @@ Pinning (`★`) overrides the lot.
 - **Review** — items carried 2+ weeks with no date ("do it, date it, or drop it"), where your open load sits by area, what's parked, and the week's numbers.
 - **Done** — completed history.
 
+### Access (hosted)
+
+This repository and the deployment are **public**, so `/life` sits behind a
+password: set `LIFE_PASSWORD` and you get a login page, an HttpOnly signed
+cookie good for 30 days, and a sign-out button in the header.
+
+The gate is designed so the unsafe state is unreachable rather than merely
+discouraged. With `LIFE_PASSWORD` unset, `/life` still works — but the API
+routes refuse to serve *any* Notion or calendar data, regardless of what else
+is configured. You cannot expose your inbox by forgetting to turn the password
+on. `middleware.ts` guards the routes, and `app/api/life/*` re-checks the cookie
+itself rather than trusting the middleware, so the one thing that can leak
+private data does its own checking.
+
+Passwords are compared through HMAC digests in constant time, tokens are signed
+with HMAC-SHA256, and a failed attempt costs a deliberate 600 ms — serverless
+rules out a reliable shared rate limit, so each guess is made to cost something.
+
+Note this covers `/life` only. The agency dashboard at `/` remains public.
+
 ### Configuration (hosted)
 
 Every variable is optional and each one degrades on its own: with none set,
@@ -150,6 +170,7 @@ Every variable is optional and each one degrades on its own: with none set,
 
 | Var | Turns on |
 | --- | --- |
+| `LIFE_PASSWORD` | the login gate — **required before any of the below do anything** |
 | `NOTION_DB_LIFE_ITEMS` | Notion sync, so your phone and laptop agree |
 | `NOTION_DB_SESSIONS` | the Claude session board |
 | `NOTION_DB_PROJECTS` | live Projects & Delivery rows |

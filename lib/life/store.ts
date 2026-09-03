@@ -117,6 +117,7 @@ export async function syncOnce(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: queued }),
       });
+      if (bounceIfUnauthorised(res.status)) throw new Error("unauthorised");
       const json = await res.json();
       if (json?.error) error = json.error;
       const written: string[] = json?.written ?? [];
@@ -129,6 +130,7 @@ export async function syncOnce(
   let items = store.items;
   try {
     const res = await fetch("/api/life/items");
+    if (bounceIfUnauthorised(res.status)) throw new Error("unauthorised");
     const json = await res.json();
     if (json?.configured && Array.isArray(json.items)) {
       items = merge(store.items, json.items as Item[]);
@@ -143,9 +145,20 @@ export async function syncOnce(
   return { items, pending: stillPending, error };
 }
 
+/** A 401 means the auth cookie lapsed — send them back to sign in rather than
+ *  silently showing an app with no live data in it. */
+function bounceIfUnauthorised(status: number): boolean {
+  if (status !== 401) return false;
+  if (typeof window !== "undefined" && !window.location.pathname.endsWith("/login")) {
+    window.location.href = "/life/login?next=" + encodeURIComponent("/life");
+  }
+  return true;
+}
+
 export async function fetchLive(): Promise<LiveData> {
   try {
     const res = await fetch("/api/life/live");
+    if (bounceIfUnauthorised(res.status)) throw new Error("unauthorised");
     if (!res.ok) throw new Error(String(res.status));
     return (await res.json()) as LiveData;
   } catch {

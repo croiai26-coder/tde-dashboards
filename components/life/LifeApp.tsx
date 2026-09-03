@@ -32,7 +32,7 @@ const TAB_LABEL: Record<Tab, string> = {
   notes: "Notes & ideas", review: "Review", done: "Done",
 };
 
-export default function LifeApp({ name }: { name: string }) {
+export default function LifeApp({ name, gated }: { name: string; gated: boolean }) {
   const [store, setStore] = useState<Store>({ items: [], seq: 1, pending: [], lastSync: 0 });
   const [live, setLive] = useState<LiveData>({ events: [], sessions: [], projects: [], errors: [] });
   const [ready, setReady] = useState(false);
@@ -359,6 +359,18 @@ export default function LifeApp({ name }: { name: string }) {
             }}>↓</button>
             <button className="icon-btn" title="Sync with Notion now" onClick={runSync}>⟳</button>
             <button className="icon-btn" title="Keyboard shortcuts & syntax" onClick={() => setShowHelp(true)}>?</button>
+            {gated && (
+              <button
+                className="icon-btn"
+                title="Sign out"
+                onClick={async () => {
+                  await fetch("/api/life/auth", { method: "DELETE" });
+                  window.location.href = "/life/login";
+                }}
+              >
+                ⏻
+              </button>
+            )}
           </div>
         </div>
 
